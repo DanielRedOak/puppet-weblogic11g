@@ -23,12 +23,8 @@ def createBootPropertiesFile(directoryPath,fileName, username, password):
 
 
 
-useStoreConfig = '<%= @useStoreConfig %>'
 
-if useStoreConfig != "true":
-    connect(wlsUser,password,'t3://'+machine+':'+portNumber)
-else:
-    connect(userConfigFile='<%= @userConfigFile %>', userKeyFile='<%= @userKeyFile %>', url='t3://'+machine+':'+portNumber)    
+connect(wlsUser,password,'t3://'+machine+':'+portNumber)
 
 edit()
 startEdit()
