@@ -55,25 +55,24 @@ define wls::wlstexec ($version        = '1111',
                       $wlstype        = undef,
                       $wlsObjectName  = undef,
                       $wlHome         = undef,
-                      $fullJDKName    = undef,
+                      $JAVA_HOME      = undef,
                       $script         = undef,
                       $address        = "localhost",
                       $port           = '7001',
                       $wlsUser        = undef,
                       $password       = undef,
-                      $userConfigFile = undef,
-                      $userKeyFile    = undef,
                       $user           = 'oracle',
-                      $group          = 'dba',
+                      $group          = 'oinstall',
                       $params         = undef,
-                      $downloadDir    = '/install',
                       $logOutput      = false,
                       ) {
-
+   #prep the main java command
    $javaCommand    = "java -Dweblogic.security.SSL.ignoreHostnameVerification=true weblogic.WLST -skipWLSModuleScanning "
-   $execPath         = "/usr/java/${fullJDKName}/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:"
-   $path             = $downloadDir
-   $JAVA_HOME        = "/usr/java/${fullJDKName}"
+   #set our overall exec path
+   $execPath         = "${JAVA_HOME}/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:"
+   #do the running from tmp
+   $path             = '/tmp'
+
    Exec { path      => $execPath,
           user      => $user,
           group     => $group,
@@ -88,19 +87,21 @@ define wls::wlstexec ($version        = '1111',
           backup  => false,
         }
 
-   # the py script used by the wlst
+   #get the script from templates
    file { "${path}/${title}${script}":
       path    => "${path}/${title}${script}",
-      content => template("wls/wlst/${script}.erb"),
+      content => template("${script}.erb"),
    }
 
+   #execure WLST with the specified script
    exec { "execwlst ${title}${script}":
       command     => "${javaCommand} ${path}/${title}${script}",
       environment => ["CLASSPATH=${wlHome}/server/lib/weblogic.jar",
                       "JAVA_HOME=${JAVA_HOME}"],
       require     => File["${path}/${title}${script}"],
    }
-
+   
+   #clean things up when we are done
    exec { "rm ${path}/${title}${script}":
       command => "rm ${path}/${title}${script}",
       require => Exec["execwlst ${title}${script}"],
