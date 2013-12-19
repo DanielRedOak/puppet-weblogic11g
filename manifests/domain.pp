@@ -1,14 +1,16 @@
 define weblogic11g::domain (
   $wlUser          = undef,
-  $wlPass          = undef,
+  $password        = undef,
   $wlHome          = undef,
   $mdwHome         = undef,
   $domain          = undef,
   $adminServerName = "AdminServer",
-  $adminListenAddr = "localhost",
+  $adminListenAdr  = "localhost",
   $adminListenPort = '7001',
   $nodemanagerPort = '5556',
   $wlsTemplate     = 'standard',
+  $developmentMode = false,
+  $JAVA_HOME       = undef,
 ){
 
   #This defined type will select the appropriate template from the installed WL instance, 
@@ -42,6 +44,24 @@ define weblogic11g::domain (
       $oracleHome    = "${mdwHome}/oracle_common"
   }
 
+  $execPath         = "${JAVA_HOME}/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin"
+  $path             = $downloadDir
+  $nodeMgrMachine   = "UnixMachine"
+
+  Exec { path      => $execPath,
+         user      => $user,
+         group     => $group,
+         logoutput => true,
+       }
+  File {
+         ensure  => present,
+         replace => true,
+         mode    => 0775,
+         owner   => $user,
+         group   => $group,
+         backup  => false,
+       }
+
   #Make the python script to create the domain
   file { "domain.py ${domain} ${title}":
     path    => "${path}/domain_${domain}.py",
@@ -74,4 +94,30 @@ define weblogic11g::domain (
       require => File["weblogic_domain_folder"],
     }
   }
-  #Note, resumer at line 454
+  #Use the Weblogic Scripting Tool with the templated domain.py script
+  #This won't run again if the domain already exists (using test)
+  exec { "execwlst ${domain} ${title}":
+    command     => "${wlstPath}/wlst.sh ${path}/domain_${domain}.py",
+    environment => ["JAVA_HOME=${JAVA_HOME}"],
+    unless      => "/usr/bin/test -e ${domainPath}/${domain}",
+    creates     => "${domainPath}/${domain}",
+    require     => [File["domain.py ${domain} ${title}"],
+                    File[$domainPath],
+                    File[$appPath]],
+    timeout     => 0,
+  }
+  #Check and turn off debug
+  exec { "setDebugFlagOnFalse ${domain} ${title}":
+    command => "sed -i -e's/debugFlag=\"true\"/debugFlag=\"false\"/g' ${domainPath}/${domain}/bin/setDomainEnv.sh",
+    onlyif  => "/bin/grep debugFlag=\"true\" ${domainPath}/${domain}/bin/setDomainEnv.sh | /usr/bin/wc -l",
+    require => Exec["execwlst ${domain} ${title}"],
+  }
+  #Cleanup the generated domain script
+  exec { "domain.py ${domain} ${title}":
+    command     => "rm ${path}/domain_${domain}.py",
+    require     => Exec["execwlst ${domain} ${title}"],
+  }
+  
+  $nodeMgrHome  = "${domainPath}/${domain}/nodemanager"
+  $listenPort   = $nodemanagerPort
+}
