@@ -14,12 +14,7 @@ globalTransactionsProtocol = "xxxx"
 <%= param %>                    
 <% end -%>                      
 
-useStoreConfig = '<%= @useStoreConfig %>'
-
-if useStoreConfig != "true":
-    connect(wlsUser,password,'t3://'+machine+':'+portNumber)
-else:
-    connect(userConfigFile='<%= @userConfigFile %>', userKeyFile='<%= @userKeyFile %>', url='t3://'+machine+':'+portNumber)    
+connect(userConfigFile='<%= @userConfigFile %>', userKeyFile='<%= @userKeyFile %>', url='t3://'+machine+':'+portNumber)    
 
 print "datasource " +dsName
 
