@@ -14,7 +14,7 @@ globalTransactionsProtocol = "xxxx"
 <%= param %>                    
 <% end -%>                      
 
-connect(userConfigFile='<%= @userConfigFile %>', userKeyFile='<%= @userKeyFile %>', url='t3://'+machine+':'+portNumber)    
+connect(wlsUser,password,'t3://'+machine+':'+portNumber)
 
 print "datasource " +dsName
 
