@@ -70,60 +70,23 @@ define wls::wlstexec ($version        = '1111',
                       $logOutput      = false,
                       ) {
 
-   # if these params are empty always continue
-   if $wlsDomain == undef or $wlstype == undef or $wlsObjectName == undef {
-     $continue = true
-   } else {
-     # check if the object already exists on the weblogic domain
-     $found = artifact_exists($wlsDomain ,$wlstype,$wlsObjectName ,$version)
-     if $found == undef {
-       $continue = true
-         notify {"wls::wlstexec ${title} ${version} continue true cause nill":}
-     } else {
-       if ( $found ) {
-         $continue = false
-       } else {
-         notify {"wls::wlstexec ${title} ${version} continue true cause not exists":}
-         $continue = true
-       }
-     }
-   }
-
-   # use userConfigStore for the connect
-	 if $password == undef {
-     $useStoreConfig = true
-   } else {
-     $useStoreConfig = false
-   }
-
-
-if ( $continue ) {
    $javaCommand    = "java -Dweblogic.security.SSL.ignoreHostnameVerification=true weblogic.WLST -skipWLSModuleScanning "
-
-   case $operatingsystem {
-     CentOS, RedHat, OracleLinux, Ubuntu, Debian, SLES: {
-
-        $execPath         = "/usr/java/${fullJDKName}/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:"
-        $path             = $downloadDir
-        $JAVA_HOME        = "/usr/java/${fullJDKName}"
-
-        Exec { path      => $execPath,
-               user      => $user,
-               group     => $group,
-               logoutput => $logOutput,
-             }
-        File {
-               ensure  => present,
-               replace => true,
-               mode    => 0555,
-               owner   => $user,
-               group   => $group,
-               backup  => false,
-             }
-     } #do something if its not the above os
-
-   }
-
+   $execPath         = "/usr/java/${fullJDKName}/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:"
+   $path             = $downloadDir
+   $JAVA_HOME        = "/usr/java/${fullJDKName}"
+   Exec { path      => $execPath,
+          user      => $user,
+          group     => $group,
+          logoutput => $logOutput,
+        }
+   File {
+          ensure  => present,
+          replace => true,
+          mode    => 0555,
+          owner   => $user,
+          group   => $group,
+          backup  => false,
+        }
 
    # the py script used by the wlst
    file { "${path}/${title}${script}":
@@ -131,27 +94,15 @@ if ( $continue ) {
       content => template("wls/wlst/${script}.erb"),
    }
 
-   case $operatingsystem {
-     CentOS, RedHat, OracleLinux, Ubuntu, Debian, SLES, Solaris: {
-
-        exec { "execwlst ${title}${script}":
-          command     => "${javaCommand} ${path}/${title}${script}",
-          environment => ["CLASSPATH=${wlHome}/server/lib/weblogic.jar",
-                          "JAVA_HOME=${JAVA_HOME}"],
-          require     => File["${path}/${title}${script}"],
-        }
-
-        case $operatingsystem {
-           CentOS, RedHat, OracleLinux, Ubuntu, Debian, SLES, Solaris: {
-              exec { "rm ${path}/${title}${script}":
-                 command => "rm ${path}/${title}${script}",
-                 require => Exec["execwlst ${title}${script}"],
-              }
-           }
-        }
-
-     } #do something if its not the above os
+   exec { "execwlst ${title}${script}":
+      command     => "${javaCommand} ${path}/${title}${script}",
+      environment => ["CLASSPATH=${wlHome}/server/lib/weblogic.jar",
+                      "JAVA_HOME=${JAVA_HOME}"],
+      require     => File["${path}/${title}${script}"],
    }
 
-}
+   exec { "rm ${path}/${title}${script}":
+      command => "rm ${path}/${title}${script}",
+      require => Exec["execwlst ${title}${script}"],
+  }
 }
